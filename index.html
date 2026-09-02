@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Password Master - 本地密码生成器，可配置规则、密码学安全随机源、不上传不存储。">
+<title>Password Master · 本地密码生成器</title>
+<style>
+  :root {
+    --bg-0: #0b0f1a;
+    --bg-1: #111827;
+    --bg-2: #1a2332;
+    --bg-3: #223047;
+    --border: #2b3a52;
+    --text-1: #e8edf5;
+    --text-2: #9aa7bd;
+    --text-3: #64748b;
+    --accent: #38bdf8;
+    --accent-strong: #0ea5e9;
+    --accent-soft: rgba(56, 189, 248, 0.12);
+    --success: #34d399;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+    --mono: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg-0);
+    color: var(--text-1);
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    background-image:
+      radial-gradient(900px 480px at 15% -10%, rgba(56, 189, 248, 0.10), transparent 60%),
+      radial-gradient(800px 420px at 110% 10%, rgba(99, 102, 241, 0.10), transparent 60%),
+      radial-gradient(700px 500px at 50% 120%, rgba(52, 211, 153, 0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 560px;
+    background: var(--bg-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 28px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35);
+  }
+
+  .logo svg { width: 24px; height: 24px; }
+
+  .logo svg .fill { fill: #06263d; }
+
+  .title h1 {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  .title p {
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+
+  /* ---------- 密码展示区 ---------- */
+  .password-area {
+    position: relative;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+    transition: border-color 0.2s;
+  }
+
+  .password-area:focus-within { border-color: var(--accent); }
+
+  .password-display {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    word-break: break-all;
+    min-height: 34px;
+    user-select: all;
+  }
+
+  .password-display.placeholder {
+    color: var(--text-3);
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: normal;
+    user-select: none;
+  }
+
+  .password-actions {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-3);
+    color: var(--text-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .icon-btn:hover { color: var(--text-1); border-color: var(--accent); }
+  .icon-btn:active { transform: scale(0.94); }
+
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  .icon-btn.copied {
+    border-color: var(--success);
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.1);
+  }
+
+  /* ---------- 强度指示 ---------- */
+  .strength {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .strength-bars {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+  }
+
+  .strength-bar {
+    height: 6px;
+    flex: 1;
+    border-radius: 3px;
+    background: var(--bg-3);
+    transition: background 0.3s;
+  }
+
+  .strength-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    min-width: 38px;
+    text-align: right;
+    color: var(--text-3);
+  }
+
+  .strength-label.weak { color: var(--danger); }
+  .strength-label.mid { color: var(--warn); }
+  .strength-label.strong { color: var(--success); }
+
+  /* ---------- 控制面板 ---------- */
+  .panel {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .panel-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-3);
+    margin-bottom: 14px;
+  }
+
+  /* 长度 */
+  .length-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .length-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 44px;
+    text-align: center;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    appearance: none;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-3);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg-1);
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.4);
+    transition: transform 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.12); }
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg-1);
+    cursor: pointer;
+  }
+
+  .range-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 6px;
+  }
+
+  /* 字符集开关 */
+  .char-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .switch-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .switch-card:hover { border-color: var(--accent); }
+
+  .switch-card.off { opacity: 0.55; }
+
+  .switch-card .opt-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13.5px;
+    font-weight: 500;
+  }
+
+  .opt-sample {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-3);
+    background: var(--bg-3);
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+
+  .switch {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .switch .track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    transition: all 0.2s;
+  }
+
+  .switch .track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-2);
+    transition: all 0.2s;
+  }
+
+  .switch input:checked + .track {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .switch input:checked + .track::after {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  /* 排除易混淆 */
+  .ambiguous-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ambiguous-row .opt-label { font-size: 13.5px; font-weight: 500; }
+  .ambiguous-hint {
+    font-size: 11.5px;
+    color: var(--text-3);
+    margin-top: 2px;
+  }
+
+  .ambiguous-hint code {
+    font-family: var(--mono);
+    background: var(--bg-3);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--text-2);
+  }
+
+  /* 错误提示 */
+  .error-msg {
+    display: none;
+    margin-top: 14px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.08);
+    border: 1px solid rgba(248, 113, 113, 0.25);
+    border-radius: var(--radius-sm);
+  }
+
+  .error-msg.show { display: block; }
+
+  /* 生成按钮 */
+  .generate-btn {
+    width: 100%;
+    margin-top: 18px;
+    padding: 14px;
+    font-size: 15.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.3);
+  }
+
+  .generate-btn:hover { filter: brightness(0.95); transform: translateY(-1px); }
+  .generate-btn:active { transform: translateY(0); }
+
+  footer {
+    margin-top: 20px;
+    font-size: 11.5px;
+    color: var(--text-3);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  footer .dot { color: var(--border); }
+
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: var(--text-1);
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.error { border-color: rgba(248, 113, 113, 0.4); color: var(--danger); }
+
+  @media (max-width: 480px) {
+    .app { padding: 20px; }
+    .char-options { grid-template-columns: 1fr; }
+    .password-display { font-size: 18px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<main class="app" aria-labelledby="app-title">
+  <header>
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path class="fill" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 1 1 6 0v3H9zm3 4a2 2 0 0 1 1 3.73V18a1 1 0 1 1-2 0v-.27A2 2 0 0 1 12 14z"/>
+      </svg>
+    </div>
+    <div class="title">
+      <h1 id="app-title">Password Master</h1>
+      <p>本地生成 · 不上传 · 不存储</p>
+    </div>
+  </header>
+
+  <!-- 密码展示 -->
+  <section class="password-area" aria-label="生成的密码">
+    <div class="password-display placeholder" id="passwordDisplay" aria-live="polite">点击「生成密码」开始</div>
+    <div class="password-actions">
+      <button class="icon-btn" id="toggleVisibility" type="button" aria-label="显示或隐藏密码" title="显示 / 隐藏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="copyBtn" type="button" aria-label="复制密码到剪贴板" title="复制">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="12" height="12" rx="2"/>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="strength" id="strengthSection" aria-hidden="true">
+      <div class="strength-bars" id="strengthBars">
+        <div class="strength-bar"></div>
+        <div class="strength-bar"></div>
+        <div class="strength-bar"></div>
+        <div class="strength-bar"></div>
+      </div>
+      <span class="strength-label" id="strengthLabel">—</span>
+    </div>
+  </section>
+
+  <!-- 控制面板 -->
+  <section class="panel" aria-label="密码规则配置">
+    <div class="panel-label">长度 Length</div>
+    <div class="length-row">
+      <input type="range" id="lengthRange" min="8" max="64" value="16" aria-label="密码长度">
+      <span class="length-value" id="lengthValue">16</span>
+    </div>
+    <div class="range-hint"><span>8</span><span>16 推荐</span><span>64</span></div>
+
+    <div class="panel-label" style="margin-top: 20px;">字符集 Character Set</div>
+    <div class="char-options">
+      <label class="switch-card" id="cardUpper">
+        <span class="opt-label">
+          大写字母
+          <span class="opt-sample">A–Z</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="optUpper" checked>
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label class="switch-card" id="cardLower">
+        <span class="opt-label">
+          小写字母
+          <span class="opt-sample">a–z</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="optLower" checked>
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label class="switch-card" id="cardDigits">
+        <span class="opt-label">
+          数字
+          <span class="opt-sample">0–9</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="optDigits" checked>
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label class="switch-card" id="cardSymbols">
+        <span class="opt-label">
+          符号
+          <span class="opt-sample">!@#$%…</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="optSymbols" checked>
+          <span class="track"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="ambiguous-row">
+      <span class="switch">
+        <input type="checkbox" id="optNoAmbiguous">
+        <span class="track"></span>
+      </span>
+      <div>
+        <div class="opt-label">排除易混淆字符</div>
+        <div class="ambiguous-hint">移除 <code>0 O o 1 l I |</code></div>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg" role="alert"></div>
+
+    <button class="generate-btn" id="generateBtn" type="button">
+      <span id="btnIcon" aria-hidden="true">⟳</span> 生成密码
+    </button>
+  </section>
+
+  <footer>
+    <span>密码仅存在于当前页面内存中</span>
+    <span class="dot">•</span>
+    <span>使用 CSPRNG 加密安全随机源</span>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- 字符集定义 ---------- */
+  var CHARSETS = {
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    digits: '0123456789',
+    symbols: '!@#$%^&*()-_=+[]{};:,.?/'
+  };
+
+  // 排除易混淆字符（在对应字符集内过滤）
+  var AMBIGUOUS = new Set(['0', 'O', 'o', '1', 'l', 'I', '|']);
+
+  var MIN_LEN = 8;
+  var MAX_LEN = 64;
+
+  /* ---------- DOM ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+
+  var display = $('passwordDisplay');
+  var copyBtn = $('copyBtn');
+  var toggleVisibilityBtn = $('toggleVisibility');
+  var eyeIcon = $('eyeIcon');
+  var strengthBars = $('strengthBars').children;
+  var strengthLabel = $('strengthLabel');
+  var lengthRange = $('lengthRange');
+  var lengthValue = $('lengthValue');
+  var optUpper = $('optUpper');
+  var optLower = $('optLower');
+  var optDigits = $('optDigits');
+  var optSymbols = $('optSymbols');
+  var optNoAmbiguous = $('optNoAmbiguous');
+  var errorMsg = $('errorMsg');
+  var generateBtn = $('generateBtn');
+  var toast = $('toast');
+
+  var currentPassword = '';
+  var isVisible = false;
+  var copyTimer = null;
+  var toastTimer = null;
+
+  /* ---------- 加密安全随机 ---------- */
+  // 使用 crypto.getRandomValues (CSPRNG)，禁止 Math.random()
+  // 采用「拒绝采样」避免取模偏差（modulo bias）
+  function secureRandomInt(max) {
+    var cryptoObj = window.crypto || window.msCrypto;
+    var buf = new Uint32Array(1);
+    var limit = Math.floor(0xFFFFFFFF / max) * max;
+    var x;
+    do {
+      cryptoObj.getRandomValues(buf);
+      x = buf[0];
+    } while (x >= limit);
+    return x % max;
+  }
+
+  function shuffleFisherYates(arr) {
+    var cryptoObj = window.crypto || window.msCrypto;
+    var i, j, tmp;
+    // 使用 CSPRNG 的 Fisher-Yates，保证排列本身也不可预测
+    for (i = arr.length - 1; i > 0; i--) {
+      j = secureRandomInt(i + 1);
+      tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  /* ---------- 获取当前启用字符集 ---------- */
+  function getEnabledCharsets() {
+    var map = {
+      upper: optUpper.checked,
+      lower: optLower.checked,
+      digits: optDigits.checked,
+      symbols: optSymbols.checked
+    };
+
+    var options = [];
+
+    Object.keys(map).forEach(function (key) {
+      if (!map[key]) return;
+      var chars = CHARSETS[key].split('');
+      if (optNoAmbiguous.checked) {
+        chars = chars.filter(function (c) { return !AMBIGUOUS.has(c); });
+      }
+      if (chars.length === 0) return;
+      options.push({ key: key, chars: chars });
+    });
+
+    return options;
+  }
+
+  /* ---------- 生成密码 ---------- */
+  // 保证每个启用的类型至少出现 1 次，其余位从合并池中抽取，最后随机洗牌
+  function generatePassword(length, options) {
+    var all = [];
+    var pool = options.map(function (o) { return o.chars; });
+    var merged = [];
+    pool.forEach(function (chars) {
+      merged = merged.concat(chars);
+    });
+
+    // 第一步：每种类型至少取 1 个
+    options.forEach(function (o) {
+      all.push(o.chars[secureRandomInt(o.chars.length)]);
+    });
+
+    // 第二步：补足剩余长度
+    while (all.length < length) {
+      all.push(merged[secureRandomInt(merged.length)]);
+    }
+
+    // 第三步：洗牌，避免「每类字符固定在开头」
+    return shuffleFisherYates(all).join('');
+  }
+
+  /* ---------- 强度评估 ---------- */
+  // 规则：基于熵值估算（字符集大小 ^ 长度），对数化到 0~4 档
+  // 熵 < 40 bit → 弱；40~59 → 中；60~79 → 强；>= 80 → 很强
+  function evaluateStrength(password) {
+    if (!password) return { level: 0, label: '—', bars: 0 };
+
+    var poolSize = 0;
+    if (/[A-Z]/.test(password)) poolSize += 26;
+    if (/[a-z]/.test(password)) poolSize += 26;
+    if (/[0-9]/.test(password)) poolSize += 10;
+    if (/[^A-Za-z0-9]/.test(password)) poolSize += CHARSETS.symbols.length;
+
+    var entropy = password.length * Math.log2(Math.max(poolSize, 2));
+
+    if (entropy < 40) return { level: 1, label: '弱', bars: 1 };
+    if (entropy < 60) return { level: 2, label: '中', bars: 2 };
+    if (entropy < 80) return { level: 3, label: '强', bars: 3 };
+    return { level: 4, label: '很强', bars: 4 };
+  }
+
+  function renderStrength(password) {
+    var s = evaluateStrength(password);
+    var colors = ['', 'var(--danger)', 'var(--warn)', 'var(--success)', 'var(--success)'];
+    var labels = ['weak', 'mid', 'strong', 'strong'];
+
+    for (var i = 0; i < strengthBars.length; i++) {
+      strengthBars[i].style.background = i < s.bars ? colors[s.level] : 'var(--bg-3)';
+    }
+    strengthLabel.className = 'strength-label' + (s.level ? ' ' + labels[s.level - 1] : '');
+    strengthLabel.textContent = s.label;
+  }
+
+  /* ---------- UI 更新 ---------- */
+  function render() {
+    if (currentPassword) {
+      display.textContent = isVisible ? currentPassword : '•'.repeat(Math.min(currentPassword.length, 32));
+      display.classList.remove('placeholder');
+      renderStrength(currentPassword);
+    } else {
+      display.textContent = '点击「生成密码」开始';
+      display.classList.add('placeholder');
+      renderStrength('');
+    }
+  }
+
+  function updateLength() {
+    var v = parseInt(lengthRange.value, 10);
+    lengthValue.textContent = v;
+  }
+
+  function updateCardStates() {
+    $('cardUpper').classList.toggle('off', !optUpper.checked);
+    $('cardLower').classList.toggle('off', !optLower.checked);
+    $('cardDigits').classList.toggle('off', !optDigits.checked);
+    $('cardSymbols').classList.toggle('off', !optSymbols.checked);
+  }
+
+  function showError(text) {
+    errorMsg.textContent = text;
+    errorMsg.classList.add('show');
+  }
+
+  function hideError() {
+    errorMsg.classList.remove('show');
+  }
+
+  function showToast(text, isError) {
+    clearTimeout(toastTimer);
+    toast.textContent = text;
+    toast.className = 'toast show' + (isError ? ' error' : '');
+    toastTimer = setTimeout(function () {
+      toast.className = 'toast';
+    }, 2000);
+  }
+
+  /* ---------- 核心操作 ---------- */
+  function generate() {
+    var length = parseInt(lengthRange.value, 10);
+
+    // 校验长度
+    if (!(length >= MIN_LEN && length <= MAX_LEN)) {
+      showError('长度需在 ' + MIN_LEN + '–' + MAX_LEN + ' 之间');
+      return;
+    }
+
+    var options = getEnabledCharsets();
+
+    // 校验字符集至少一类
+    if (options.length === 0) {
+      showError('请至少启用一种字符类型');
+      return;
+    }
+
+    // 校验排除易混淆后非空
+    var enabledCount = [optUpper.checked, optLower.checked, optDigits.checked, optSymbols.checked]
+      .filter(Boolean).length;
+    if (optNoAmbiguous.checked && options.length < enabledCount) {
+      showError('开启「排除易混淆」后部分字符类型已为空，请调整选项');
+      return;
+    }
+
+    hideError();
+    currentPassword = generatePassword(length, options);
+    render();
+
+    // 生成后默认隐藏（安全默认）
+    if (isVisible) {
+      isVisible = false;
+      render();
+    }
+  }
+
+  /* ---------- 复制 ---------- */
+  function copyPassword() {
+    if (!currentPassword) {
+      showToast('请先生成密码', true);
+      return;
+    }
+
+    function fallbackCopy() {
+      // 兼容旧环境：临时 textarea 复制
+      var ta = document.createElement('textarea');
+      ta.value = currentPassword;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        onCopySuccess();
+      } catch (e) {
+        onCopyFail();
+      }
+      document.body.removeChild(ta);
+    }
+
+    function onCopySuccess() {
+      copyBtn.classList.add('copied');
+      copyBtn.title = '已复制';
+      showToast('已复制到剪贴板');
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(function () {
+        copyBtn.classList.remove('copied');
+        copyBtn.title = '复制';
+      }, 1500);
+    }
+
+    function onCopyFail() {
+      showToast('复制失败，请手动选择复制', true);
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(currentPassword).then(onCopySuccess, fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  }
+
+  /* ---------- 显示 / 隐藏 ---------- */
+  function toggleVisibility() {
+    if (!currentPassword) return;
+    isVisible = !isVisible;
+    // 切换眼睛图标
+    if (isVisible) {
+      eyeIcon.innerHTML =
+        '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
+        '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
+        '<path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>' +
+        '<line x1="2" y1="2" x2="22" y2="22"/>';
+    } else {
+      eyeIcon.innerHTML =
+        '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>' +
+        '<circle cx="12" cy="12" r="3"/>';
+    }
+    render();
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  generateBtn.addEventListener('click', generate);
+
+  lengthRange.addEventListener('input', updateLength);
+  lengthRange.addEventListener('change', function () {
+    updateLength();
+    generate();
+  });
+
+  [optUpper, optLower, optDigits, optSymbols, optNoAmbiguous].forEach(function (checkbox) {
+    checkbox.addEventListener('change', function () {
+      updateCardStates();
+      hideError();
+      if (currentPassword) generate();
+    });
+  });
+
+  copyBtn.addEventListener('click', copyPassword);
+  toggleVisibilityBtn.addEventListener('click', toggleVisibility);
+
+  // 键盘可访问：Enter / Space 在卡片上触发生成
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target === document.body) {
+      e.preventDefault();
+      generate();
+    }
+  });
+
+  /* ---------- 初始化 ---------- */
+  updateLength();
+  updateCardStates();
+  render();
+})();
+</script>
+</body>
+</html>
