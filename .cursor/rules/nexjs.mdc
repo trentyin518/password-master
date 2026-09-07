@@ -1,0 +1,275 @@
+---
+alwaysApply: true
+---
+
+# Next.js Project Development Guidelines
+
+This document outlines the comprehensive development standards and best practices for our Next.js project.
+
+## Core Development Philosophy
+
+- Write clean, maintainable, and scalable code
+- Follow SOLID principles
+- Prefer functional and declarative programming patterns
+- Emphasize type safety with TypeScript
+- Practice component-driven development
+- Prioritize performance and accessibility
+
+## Project Structure
+
+src/
+├── app/                 # App Router directory
+├── components/          # Reusable components
+│   ├── ui/             # shadcn/ui components (managed by shadcn CLI)
+│   ├── layout/         # Layout components
+│   └── features/       # Feature-specific components
+├── lib/                # Utility functions and shared logic
+├── hooks/              # Custom React hooks
+├── types/              # TypeScript type definitions
+├── styles/             # Global styles and CSS modules
+└── utils/              # Helper functions
+
+## Code Style & Conventions
+
+### File & Directory Naming
+- Use kebab-case for file names: `user-profile.tsx`
+- Use kebab-case for directories: `auth-wizard/`
+- Use PascalCase for component files: `UserProfile.tsx`
+- Use camelCase for utility files: `formatDate.ts`
+
+### Component Structure
+- One component per file
+- Place in appropriate directory based on responsibility
+- Co-locate related files (styles, tests, types)
+- Use TypeScript interfaces for props
+- Export as named exports
+
+### TypeScript Usage
+- Enable strict mode
+- Define explicit types for props and state
+- Use interfaces for object types
+- Utilize type guards for null checks
+- Leverage utility types (Partial, Pick, Omit)
+
+### Styling Approach
+- Use Tailwind CSS as primary styling solution
+- Use shadcn/ui components as the foundation for all UI (see "shadcn/ui" section below)
+- Follow mobile-first responsive design
+- Maintain consistent spacing and typography
+- Use CSS variables for theming
+- Implement dark mode support
+
+## UI Component Library: shadcn/ui
+
+All website pages MUST be built with the shadcn/ui component library on top of Tailwind CSS.
+
+- Official documentation: https://ui.shadcn.com/docs/installation/next
+- Components catalog: https://ui.shadcn.com/docs/components
+- Blocks (full page examples): https://ui.shadcn.com/blocks
+- Theming: https://ui.shadcn.com/docs/theming
+
+### Setup & Installation
+
+Initialize shadcn/ui in a new Next.js project (creates `components.json` and the `cn()` utility):
+
+```bash
+npx shadcn@latest init
+# or scaffold a brand-new Next.js project with shadcn pre-configured:
+npx shadcn@latest init -t next
+# with src/ directory layout:
+npx create-next-app@latest --src-dir && npx shadcn@latest init
+```
+
+For pnpm users, use `pnpm dlx shadcn@latest init` instead.
+
+### Adding Components
+
+Never hand-write UI primitives. Always add shadcn components via the CLI:
+
+```bash
+npx shadcn@latest add button card dialog
+```
+
+- Components are generated into `components/ui/` (or `src/components/ui/`)
+- The code is owned by the project — you may customize it, but keep changes minimal and consistent
+- Check https://ui.shadcn.com/docs/components to see what is available before building custom UI
+
+### Import Conventions
+
+Always import shadcn components from the `@/components/ui/*` alias:
+
+```tsx
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+```
+
+### Page Building Guidelines
+
+- Compose pages from shadcn components: `Button`, `Card`, `Dialog`, `Sheet`, `Tabs`, `Table`, `Form`, `Input`, `Select`, `Dropdown Menu`, `Toast/Sonner`, `Skeleton`, etc.
+- Prefer shadcn `Blocks` (https://ui.shadcn.com/blocks) as starting points for common layouts: login pages, dashboards, settings, sidebars
+- Use the `cn()` utility (`@/lib/utils`) for conditional class merging — never template-string class concatenation
+- Use component variants (`variant`, `size` props) instead of custom overrides; extend variants via `class-variance-authority` (cva) when needed
+- Keep page-specific wrappers in `components/features/` or `components/layout/`; do not pollute `components/ui/`
+- Maintain a consistent design by customizing CSS variables (colors, radius) in the global CSS rather than hardcoding colors
+- Support dark mode using shadcn's CSS-variable-based theming (`.dark` class strategy)
+- Use `Skeleton` for loading states and `Sonner`/`Toast` for feedback
+
+### Forms with shadcn/ui
+
+- Build forms with shadcn `Form` components (wrapper around React Hook Form)
+- Validate with Zod schemas via `zodResolver`
+- Compose with `Field`, `Input`, `Textarea`, `Select`, `Checkbox`, `Radio Group`, `Label`
+- Show validation errors through the built-in `FormMessage` component
+
+### Best Practices
+
+- Do not install alternative UI kits (MUI, Ant Design, Chakra) — shadcn/ui is the single source of UI components
+- After adding components, review the generated code and align it with project TypeScript strict mode
+- Keep `components.json` committed to the repo so the CLI stays configured for all developers
+- When upgrading, re-add components with the CLI and re-apply project customizations carefully
+
+## Component Development
+
+### Server vs Client Components
+- Default to Server Components
+- Use 'use client' directive only when needed:
+  - Event handlers
+  - Browser APIs
+  - State management
+  - Client-side libraries
+
+### Component Best Practices
+- Keep components focused and single-responsibility
+- Extract reusable logic to custom hooks
+- Implement proper error boundaries
+- Use proper loading states
+- Handle edge cases and errors gracefully
+
+### Performance Optimization
+- Use Image component for images
+- Implement proper code splitting
+- Utilize React.memo() strategically
+- Use proper key props in lists
+- Optimize bundle size
+
+## State Management
+
+### Local State
+- useState for simple state
+- useReducer for complex state
+- useContext for shared state
+- Custom hooks for reusable state logic
+
+### Global State
+- Redux Toolkit for complex global state
+- Zustand for simpler global state
+- Normalize state structure
+- Use selectors for state access
+- Separate concerns by feature
+
+## Data Fetching
+
+### Server Components
+- Use async/await in Server Components
+- Implement proper caching strategies
+- Handle loading and error states
+- Use proper revalidation methods
+
+### Client Components
+- Use SWR or React Query
+- Implement proper error handling
+- Show loading states
+- Handle offline scenarios
+
+## Form Handling
+
+### Validation
+- Use Zod for schema validation
+- React Hook Form for form management
+- Implement proper error messages
+- Show validation feedback
+
+### Accessibility
+- Use proper ARIA attributes
+- Implement keyboard navigation
+- Provide error feedback
+- Maintain focus management
+
+## Testing Strategy
+
+### Unit Testing
+- Jest and React Testing Library
+- Test component behavior
+- Mock external dependencies
+- Follow AAA pattern
+
+### Integration Testing
+- Test user workflows
+- Proper test setup/teardown
+- Use snapshot testing sparingly
+- Test error scenarios
+
+## Security Considerations
+
+- Implement proper authentication
+- Sanitize user input
+- Use proper CORS policies
+- Follow security best practices
+- Implement rate limiting
+
+## Internationalization
+
+- Use next-i18next
+- Support multiple languages
+- Handle RTL layouts
+- Format dates and numbers
+- Support currency formatting
+
+## Documentation
+
+- Use JSDoc for code documentation
+- Document component props
+- Provide usage examples
+- Keep documentation up-to-date
+- Use clear and concise language
+
+## Performance Guidelines
+
+- Optimize images and assets
+- Implement proper caching
+- Use proper bundling strategies
+- Monitor performance metrics
+- Implement lazy loading
+
+## Error Handling
+
+- Implement error boundaries
+- Log errors properly
+- Show user-friendly error messages
+- Handle edge cases
+- Implement fallback UI
+
+## Build & Deployment
+
+- Use proper environment variables
+- Implement CI/CD pipeline
+- Follow deployment best practices
+- Monitor build size
+- Implement proper caching
+
+## Code Review Guidelines
+
+- Review for functionality
+- Check for performance issues
+- Verify accessibility
+- Ensure proper testing
+- Review documentation
+
+Remember to follow these guidelines to maintain consistency and quality across the project. Update this document as new standards and best practices emerge.
+
